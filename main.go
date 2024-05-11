@@ -6,14 +6,23 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/joho/godotenv"
+	_ "github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
-const connString = "user=myuser password=mypassword dbname=mydatabase sslmode=disable"
-
 func connectToDB() (*sql.DB, error) {
+	
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+	dbSSLMode := os.Getenv("DB_SSL_MODE")
+
+	connString := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=%s", dbUser, dbPassword, dbName, dbSSLMode)
+
 	db, err := sql.Open("postgres", connString)
 	if err != nil {
 		return nil, err
@@ -57,6 +66,11 @@ func deleteLinks(db *sql.DB) {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	db, err := connectToDB()
 	if err != nil {
 		panic(err)
@@ -80,7 +94,7 @@ func main() {
 
 		longLink := getLink
 		shortLink := generateRandStr()
-		log.Println("127.0.0.1:8080/" + shortLink)
+		log.Println("127.0.0.1/" + shortLink)
 
 		expirationTime := time.Now().Add(7 * 24 * time.Hour)
 		query := "INSERT INTO urls (long_link, short_link, expiration_time) VALUES ($1, $2, $3)"
@@ -90,7 +104,7 @@ func main() {
 		} else {
 			log.Println("Данные успешно внесены в бд")
 		}
-		w.Write([]byte(("127.0.0.1:8080/" + shortLink)))
+		w.Write([]byte(("127.0.0.1/" + shortLink)))
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -109,7 +123,7 @@ func main() {
 	})
 
 	log.Println("Server starting...")
-	err = http.ListenAndServe("localhost:8080", nil)
+	err = http.ListenAndServe("localhost:80", nil)
 	if err != nil {
 		log.Println("Server error", err)
 	}

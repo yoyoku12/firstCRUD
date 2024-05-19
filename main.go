@@ -14,8 +14,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-//test
-
 func connectToDB() (*sql.DB, error) {
 
 	dbUser := os.Getenv("DB_USER")
@@ -103,9 +101,11 @@ func main() {
 		_, err = db.Exec(query, longLink, shortLink, expirationTime)
 		if err != nil {
 			log.Println("Ошибка внесения данных в бд", err)
-		} else {
-			log.Println("Данные успешно внесены в бд")
+			return
 		}
+
+		log.Println("Данные успешно внесены в бд")
+
 		w.Write([]byte(("127.0.0.1/" + shortLink)))
 	})
 

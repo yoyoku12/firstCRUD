@@ -7,21 +7,22 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/joho/godotenv"
-	_ "github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
 func connectToDB() (*sql.DB, error) {
-
 	dbUser := os.Getenv("DB_USER")
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
 	dbSSLMode := os.Getenv("DB_SSL_MODE")
 
-	connString := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=%s", dbUser, dbPassword, dbName, dbSSLMode)
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", dbUser, dbPassword, dbHost, dbPort, dbName, dbSSLMode)
 
 	db, err := sql.Open("postgres", connString)
 	if err != nil {
@@ -38,8 +39,24 @@ func connectToDB() (*sql.DB, error) {
 	return db, nil
 }
 
-func generateRandStr() string {
+func runMigrations() error {
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbSSLMode := os.Getenv("DB_SSL_MODE")
 
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", dbUser, dbPassword, dbHost, dbPort, dbName, dbSSLMode)
+
+	cmd := exec.Command("migrate", "-path", "./migrations", "-database", dsn, "up")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
+func generateRandStr() string {
 	alphabet := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	numbers := "0123456789"
 
@@ -69,6 +86,11 @@ func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
+	}
+
+	err = runMigrations()
+	if err != nil {
+		log.Fatalf("Error running migrations: %v", err)
 	}
 
 	db, err := connectToDB()

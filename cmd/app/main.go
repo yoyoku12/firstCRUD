@@ -15,13 +15,13 @@ import (
 )
 
 func main() {
-	// Загрузка .env файла из корневой директории проекта
+
 	err := godotenv.Load("../../.env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	log.Println("DB_USER:", os.Getenv("DB_USER")) // Добавьте эту строку для отладки
+	log.Println("DB_USER:", os.Getenv("DB_USER"))
 
 	err = config.RunMigrations()
 	if err != nil {

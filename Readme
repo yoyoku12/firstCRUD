@@ -1,0 +1,7 @@
+cmd/app/main.go: Точка входа в приложение, где происходит настройка всех зависимостей и запуск HTTP-сервера.
+internal/domain/models: Определение моделей данных.
+internal/domain/repositories: Интерфейсы для работы с данными.
+internal/usecases: Бизнес-логика, которая использует репозитории.
+internal/interfaces/controllers: HTTP-контроллеры, которые вызывают use cases.
+internal/interfaces/database/postgres: Реализация репозиториев для работы с PostgreSQL.
+pkg/config: Конфигурация приложения.

@@ -1,0 +1,21 @@
+# GET запрос для получения длинной ссылки по короткой
+GET http://localhost:80/bULRpbau
+Accept: application/json
+
+###
+
+# GET запрос для некорректной короткой ссылки
+GET http://localhost:80/unknown
+Accept: application/json
+
+###
+
+# POST запрос для создания новой короткой ссылки
+POST http://localhost:80/longToShort?longLink=http://example.com
+Content-Type: application/x-www-form-urlencoded
+
+###
+
+# POST запрос с пустой длинной ссылкой (ожидается 400)
+POST http://localhost:80/longToShort?longLink=
+Content-Type: application/x-www-form-urlencoded

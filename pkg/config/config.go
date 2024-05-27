@@ -1,14 +1,13 @@
 package config
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 
+	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	"github.com/jackc/pgx/v4/pgxpool"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 )
 
@@ -32,37 +31,38 @@ func LoadDBConfig() DBConfig {
 	}
 }
 
-func getMigrationsPath() (string, error) {
-	absPath, err := filepath.Abs("./migrations")
-	if err != nil {
-		return "", err
-	}
-	return absPath, nil
-}
-
 func RunMigrations() error {
-
 	dbConfig := LoadDBConfig()
-	connString := fmt.Sprintf("'postgres://%s:%s@%s:%s/%s?sslmode=%s'", dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Name, dbConfig.SSLMode)
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Name, dbConfig.SSLMode)
 
-	migrationsPath, err := getMigrationsPath()
-	if err != nil {
-		return err
-	}
+	migrationsPath := "./migrations"
 
-	db, err := pgxpool.Connect(context.Background(), connString)
+	fmt.Printf("Migrations path: %s\n", migrationsPath)
+
+	db, err := sql.Open("postgres", connString)
 	if err != nil {
-		return fmt.Errorf("Подключение невозможно: %v", err)
+		return fmt.Errorf("unable to connect to database: %v", err)
 	}
 	defer db.Close()
 
-	driver, err := postgres.
-		fmt.Println(dsn)
-	cmd := exec.Command("migrate", "-path", fmt.Sprintf("file:///%s", migrationsPath), "-database", "pgx://"+dsn, "up")
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("could not create database driver: %v", err)
+	}
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Dir = ""
+	m, err := migrate.NewWithDatabaseInstance(
+		fmt.Sprintf("file://%s", migrationsPath),
+		"postgres",
+		driver,
+	)
+	if err != nil {
+		return fmt.Errorf("could not create migrate instance: %v", err)
+	}
 
-	return cmd.Run()
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("could not apply migrations: %v", err)
+	}
+
+	fmt.Println("Migrations ran successfully")
+	return nil
 }

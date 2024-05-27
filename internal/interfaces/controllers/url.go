@@ -9,10 +9,10 @@ import (
 )
 
 type URLController struct {
-	URLUseCase *url.URLUsecase
+	URLUseCase *url.Usecase
 }
 
-func NewURLController(useCase *url.URLUsecase) *URLController {
+func NewURLController(useCase *url.Usecase) *URLController {
 	return &URLController{URLUseCase: useCase}
 }
 
@@ -32,8 +32,9 @@ func (ctrl *URLController) LongToShort(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ctrl *URLController) handleGet(w http.ResponseWriter, r *http.Request) {
-	shortLink := r.URL.Path[1:]
-	log.Println("Получен GET-запрос для короткой ссылки:", shortLink) // Добавим логирование
+	shortLink := r.URL.Path[len("/"):]
+
+	log.Println("Получен GET-запрос для короткой ссылки:", shortLink)
 
 	longLink, err := ctrl.URLUseCase.GetLongURL(shortLink)
 	if err != nil {
@@ -50,6 +51,7 @@ func (ctrl *URLController) handleGet(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
 	log.Println("Редирект на длинную ссылку:", longLink)
 	http.Redirect(w, r, longLink, http.StatusFound)
 }

@@ -7,7 +7,6 @@ import (
 	"URL_SHORT/pkg/config"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -15,13 +14,11 @@ import (
 )
 
 func main() {
-
-	err := godotenv.Load("../../.env")
+	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-
-	log.Println("DB_USER:", os.Getenv("DB_USER"))
+	log.Println("Environment variables loaded")
 
 	err = config.RunMigrations()
 	if err != nil {
@@ -35,18 +32,18 @@ func main() {
 	defer db.Close()
 
 	urlRepo := postgres.NewURLRepository(db)
-	urlUsecase := url.NewURLUsecase(urlRepo)
-	urlController := controllers.NewURLController(urlUsecase)
+	urlUseCase := url.NewURLUsecase(urlRepo)
+	urlController := controllers.NewURLController(urlUseCase)
 
 	go func() {
-		for {
-			urlUsecase.DeleteExpiredLinks()
-			time.Sleep(24 * time.Hour)
+		t := time.NewTicker(24 * time.Hour)
+		for range t.C {
+			urlUseCase.DeleteExpiredLinks()
 		}
 	}()
 
+	http.HandleFunc("/", urlController.LongToShort)
 	http.HandleFunc("/longToShort", urlController.LongToShort)
-	http.HandleFunc("/", urlController.Redirect)
 
 	log.Println("Server starting...")
 	err = http.ListenAndServe("localhost:80", nil)

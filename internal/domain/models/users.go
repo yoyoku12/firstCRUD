@@ -32,6 +32,10 @@ func (p *password) Set(s string) error {
 	return nil
 }
 
+func (p *password) SetHash(hash []byte) {
+	p.hash = hash
+}
+
 func (p *password) Check(s string) (bool, error) {
 	err := bcrypt.CompareHashAndPassword(p.hash, []byte(s))
 	if err != nil {

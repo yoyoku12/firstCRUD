@@ -10,7 +10,7 @@ type Usecase struct {
 	URLRepo repositories.URLRepository
 }
 
-func NewURLUsecase(repo repositories.URLRepository) *Usecase {
+func NewURLUseCase(repo repositories.URLRepository) *Usecase {
 	return &Usecase{URLRepo: repo}
 }
 

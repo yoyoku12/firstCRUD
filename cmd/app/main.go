@@ -3,6 +3,8 @@ package main
 import (
 	"URL_SHORT/internal/interfaces/controllers"
 	"URL_SHORT/internal/interfaces/database/postgres"
+	"URL_SHORT/internal/interfaces/middleware"
+	"URL_SHORT/internal/interfaces/routes"
 	"URL_SHORT/internal/usecases/url"
 	"URL_SHORT/pkg/config"
 	"log"
@@ -25,15 +27,19 @@ func main() {
 		log.Fatalf("Error running migrations: %v", err)
 	}
 
-	db, err := postgres.ConnectToDB(config.LoadDBConfig())
+	dbConfig := config.LoadDBConfig()
+
+	db, err := postgres.ConnectToDB(dbConfig)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Error connecting to database: %v", err)
 	}
 	defer db.Close()
 
 	urlRepo := postgres.NewURLRepository(db)
-	urlUseCase := url.NewURLUsecase(urlRepo)
+	urlUseCase := url.NewURLUseCase(urlRepo)
 	urlController := controllers.NewURLController(urlUseCase)
+	authController := controllers.NewAuthController(db)
+	authMiddleware := middleware.NewAuthMiddleware(urlRepo)
 
 	go func() {
 		t := time.NewTicker(24 * time.Hour)
@@ -42,8 +48,7 @@ func main() {
 		}
 	}()
 
-	http.HandleFunc("/", urlController.LongToShort)
-	http.HandleFunc("/longToShort", urlController.LongToShort)
+	routes.RegisterRoutes(urlController, authController, authMiddleware)
 
 	log.Println("Server starting...")
 	err = http.ListenAndServe("localhost:80", nil)

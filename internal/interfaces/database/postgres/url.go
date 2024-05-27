@@ -1,7 +1,6 @@
 package postgres
 
 import (
-	"URL_SHORT/internal/domain/repositories"
 	"database/sql"
 	"time"
 )
@@ -10,7 +9,7 @@ type URLRepository struct {
 	DB *sql.DB
 }
 
-func NewURLRepository(db *sql.DB) repositories.URLRepository {
+func NewURLRepository(db *sql.DB) *URLRepository {
 	return &URLRepository{DB: db}
 }
 

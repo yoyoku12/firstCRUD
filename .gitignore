@@ -1,0 +1,4 @@
+.idea
+
+# prevent secrets leaking 
+*.env

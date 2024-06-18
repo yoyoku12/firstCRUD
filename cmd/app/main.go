@@ -3,11 +3,12 @@ package main
 import (
 	"URL_SHORT/internal/interfaces/controllers"
 	"URL_SHORT/internal/interfaces/database/postgres"
+	"URL_SHORT/internal/interfaces/middleware"
+	"URL_SHORT/internal/interfaces/routes"
 	"URL_SHORT/internal/usecases/url"
 	"URL_SHORT/pkg/config"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -15,38 +16,39 @@ import (
 )
 
 func main() {
-
-	err := godotenv.Load("../../.env")
+	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-
-	log.Println("DB_USER:", os.Getenv("DB_USER"))
+	log.Println("Environment variables loaded")
 
 	err = config.RunMigrations()
 	if err != nil {
 		log.Fatalf("Error running migrations: %v", err)
 	}
 
-	db, err := postgres.ConnectToDB(config.LoadDBConfig())
+	dbConfig := config.LoadDBConfig()
+
+	db, err := postgres.ConnectToDB(dbConfig)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Error connecting to database: %v", err)
 	}
 	defer db.Close()
 
 	urlRepo := postgres.NewURLRepository(db)
-	urlUsecase := url.NewURLUsecase(urlRepo)
-	urlController := controllers.NewURLController(urlUsecase)
+	urlUseCase := url.NewURLUseCase(urlRepo)
+	urlController := controllers.NewURLController(urlUseCase)
+	authController := controllers.NewAuthController(db)
+	authMiddleware := middleware.NewAuthMiddleware(urlRepo)
 
 	go func() {
-		for {
-			urlUsecase.DeleteExpiredLinks()
-			time.Sleep(24 * time.Hour)
+		t := time.NewTicker(24 * time.Hour)
+		for range t.C {
+			urlUseCase.DeleteExpiredLinks()
 		}
 	}()
 
-	http.HandleFunc("/longToShort", urlController.LongToShort)
-	http.HandleFunc("/", urlController.Redirect)
+	routes.RegisterRoutes(urlController, authController, authMiddleware)
 
 	log.Println("Server starting...")
 	err = http.ListenAndServe("localhost:80", nil)

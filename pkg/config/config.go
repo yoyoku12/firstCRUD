@@ -1,9 +1,14 @@
 package config
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
-	"os/exec"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 )
 
 type DBConfig struct {
@@ -27,18 +32,37 @@ func LoadDBConfig() DBConfig {
 }
 
 func RunMigrations() error {
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbSSLMode := os.Getenv("DB_SSL_MODE")
+	dbConfig := LoadDBConfig()
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Name, dbConfig.SSLMode)
 
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", dbUser, dbPassword, dbHost, dbPort, dbName, dbSSLMode)
+	migrationsPath := "./migrations"
 
-	cmd := exec.Command("migrate", "-path", "../../migrations", "-database", dsn, "up")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	fmt.Printf("Migrations path: %s\n", migrationsPath)
 
-	return cmd.Run()
+	db, err := sql.Open("postgres", connString)
+	if err != nil {
+		return fmt.Errorf("unable to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("could not create database driver: %v", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		fmt.Sprintf("file://%s", migrationsPath),
+		"postgres",
+		driver,
+	)
+	if err != nil {
+		return fmt.Errorf("could not create migrate instance: %v", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("could not apply migrations: %v", err)
+	}
+
+	fmt.Println("Migrations ran successfully")
+	return nil
 }
